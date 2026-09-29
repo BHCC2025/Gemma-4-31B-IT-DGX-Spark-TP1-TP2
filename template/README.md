@@ -28,6 +28,15 @@ test before it is marked verified. See [bench/results/](bench/results/).
 
 ## Quick start
 
+Before you start:
+- DGX OS 7 on {{EVERY_SPARK}}, with its current updates.
+<!-- multi -->
+- The QSFP cables connected: {{CABLING_SENTENCE}}.
+  No IP addresses are needed on the cabled ports; `./setup.sh` assigns them ([docs/networking.md](docs/networking.md)).
+<!-- /multi -->
+- Nothing to set up on Hugging Face unless the model is gated: `./setup.sh` test-downloads one small file first, and
+  if the model is gated it shows the licence page to accept and offers to log you in.
+
 On the Spark you'll serve from (the head node):
 
 ```bash
