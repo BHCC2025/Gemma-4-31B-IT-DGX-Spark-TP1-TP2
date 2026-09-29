@@ -4,7 +4,7 @@
 usage: bench-decode.py [BASE_URL] [MODEL] [--long N_KTOK] [--runs N] [--max-tokens N] [--no-think] [--code] [--timings]
   --no-think / --think -> chat_template_kwargs.enable_thinking=false/true (server default otherwise) ; --code -> code-generation prompt (for MTP acceptance)
   BASE_URL defaults to http://127.0.0.1:8000/v1 ; MODEL defaults to the first id in /v1/models
-  --long 16   -> ~16K-token prompt (measures prefill tok/s and decode at depth)
+  --long N    -> a long prompt of about 0.78*N K tokens (--long 12 is ~9.3K); measures prefill and decode at depth
 Reports per run: prompt tokens, generated tokens, TTFT, prefill tok/s, decode tok/s.
 """
 import json, statistics, sys, time, urllib.request

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""new_recipe.py — create a new recipe repo from kit/template/. Run via kit/new-recipe.sh (see --help there)."""
+"""Create a new BHCC2025-style DGX Spark recipe repo from the kit's template/, for the TP sizes you choose."""
 import argparse, datetime, os, re, shutil, sys
 
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,16 +27,19 @@ def words(sizes):
     return ", ".join(map(str, sizes[:-1])) + f" or {sizes[-1]}"
 
 
-def strip_blocks(text, maxtp):
-    for n in (2, 3):
-        pat = re.compile(rf"<!-- tp{n} -->\n(.*?)<!-- /tp{n} -->\n", re.S)
-        text = pat.sub(lambda m: m.group(1) if maxtp >= n else "", text)
+def strip_blocks(text, sizes):
+    """Keep <!-- X -->...<!-- /X --> blocks that apply: multi (any multi-node size), single (TP1 only),
+    tp2 / tp3 (that size ships). Marker lines are always removed."""
+    keep = {"multi": max(sizes) >= 2, "single": sizes == [1], "tp2": 2 in sizes, "tp3": 3 in sizes}
+    for tag, on in keep.items():
+        pat = re.compile(rf"<!-- {tag} -->\n(.*?)<!-- /{tag} -->\n", re.S)
+        text = pat.sub(lambda m: m.group(1) if on else "", text)
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
-def strip_env_sections(text, maxtp):
+def strip_env_sections(text, sizes):
     for n in (2, 3):
-        if maxtp < n:
+        if n not in sizes:
             text = re.sub(rf"\n# ---- TP{n}:.*?(?=\n# ---- |\Z)", "\n", text, flags=re.S)
     return re.sub(r"\n{3,}", "\n\n", text).rstrip("\n") + "\n"
 
@@ -75,7 +78,18 @@ def main():
         "TP_LIST": ", ".join(map(str, sizes)), "TP_CMDS": "|".join(f"tp{n}" for n in sizes),
         "TP_CMDS_COMMA": ", ".join(f"TP{n}" for n in sizes),
         "FIRST_RUN": ", ".join(f"{n}: ./run.sh tp{n}" for n in sizes),
-        "SPARKS_WORDS": words(sizes), "SPARKS_NOUN": "Spark" if sizes == [1] else "Sparks", "EACH": "" if len(sizes) == 1 and sizes[0] == 1 else " each", "SPARKS_WORDS_CAP": f"{lo}–{hi}" if lo != hi else str(lo),
+        "SPARKS_WORDS": words(sizes), "SPARKS_NOUN": "Spark" if sizes == [1] else "Sparks",
+        "SPARKS_NOUN_CAP": "Spark" if hi == 1 else "Sparks",
+        "CABLES_ROW": ("| Cables | " + ". ".join({2: "TP2: one QSFP cable", 3: "TP3: three, in a triangle"}[n] for n in sizes if n > 1)
+                       + " (see [docs/networking.md](docs/networking.md)) |\n") if hi > 1 else "",
+        "DISK_WHERE": " on **every** node (each node needs its own local copy of the model)" if hi > 1 else "",
+        "ACCESS": ("SSH from the head node to the workers (`setup.sh` sets up key login); `sudo` for installs and fabric IPs"
+                   if hi > 1 else "`sudo` for installs"),
+        "WORKER_LOGS": ", `docker logs " + "vllm_" + slug.replace("-", "_") + "` on a worker" if hi > 1 else "",
+        "NODES_COMMENT": "# " + "; ".join(f"TP{n} uses " + ("NODES[0]" if n == 1 else f"NODES[0..{n - 1}]") for n in sizes)
+                         + (". Passwordless SSH head -> workers required." if hi > 1 else "."),
+        "EXTRA_KNOBS": ("`IMAGE`, `MPORT` (the multi-node rendezvous port), `NCCL_DEBUG` and `NCCL_CHANNELS` can"
+                        if hi > 1 else "`IMAGE` can"), "EACH": "" if len(sizes) == 1 and sizes[0] == 1 else " each", "SPARKS_WORDS_CAP": f"{lo}–{hi}" if lo != hi else str(lo),
         "README_ROWS": "\n".join(f"| {n} | `./run.sh tp{n}` | 256K | – | – | not yet |" for n in sizes),
         "QUICKSTART_CMDS": "\n".join(f"./run.sh tp{n}        {QUICK[n]}" for n in sizes),
         "SETTINGS_HEAD": " | ".join(f"TP{n}" for n in sizes), "SETTINGS_SEP": "---|" * k,
@@ -94,6 +108,8 @@ def main():
     for n in (1, 2, 3):
         if n not in sizes:
             os.remove(os.path.join(out, "recipes", f"tp{n}.sh"))
+    if hi == 1:   # one Spark: no fabric, so no networking doc
+        os.remove(os.path.join(out, "docs", "networking.md"))
 
     left = []
     for root, _, files in os.walk(out):
@@ -105,20 +121,13 @@ def main():
             for key, val in tok.items():
                 s = s.replace("{{" + key + "}}", val)
             if f.endswith(".md"):
-                s = strip_blocks(s, hi)
+                s = strip_blocks(s, sizes)
             if f == "cluster.env.example":
-                s = strip_env_sections(s, hi)
+                s = strip_env_sections(s, sizes)
                 s = re.sub(r"^NODES=\(.*\)$", "NODES=(" + " ".join(f"spark{i + 1}" for i in range(hi)) + ")", s,
                            count=1, flags=re.M)
-            if f == "README.md":
-                if lo == hi:
-                    s = s.replace(f"(TP{lo}–TP{hi})", f"(TP{lo})", 1)
-                cab = "| Cables |"
-                line = next((l for l in s.splitlines() if l.startswith(cab)), None)
-                if line and hi == 1:
-                    s = s.replace(line + "\n", "")
-                elif line and hi == 2:
-                    s = s.replace(line, "| Cables | TP2: one QSFP cable (see [docs/networking.md](docs/networking.md)) |")
+            if f == "README.md" and lo == hi:
+                s = s.replace(f"(TP{lo}–TP{hi})", f"(TP{lo})", 1)
             open(p, "w").write(s)
             left += [f"{os.path.relpath(p, out)}: {t}" for t in re.findall(r"\{\{[A-Z_]+\}\}", s)]
     if left:

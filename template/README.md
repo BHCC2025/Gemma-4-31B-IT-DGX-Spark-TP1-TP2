@@ -19,13 +19,12 @@ test before it is marked verified. See [bench/results/](bench/results/).
 
 | | |
 |---|---|
-| Hardware | {{SPARKS_WORDS_CAP}} DGX Spark (or other GB10 boxes with a ConnectX-7) |
-| Cables | TP2: one QSFP cable. TP3: three, in a triangle (see [docs/networking.md](docs/networking.md)) |
-| OS | DGX OS 7 (Ubuntu 24.04), Docker with the NVIDIA runtime |
-| Disk | TODO GB free NVMe on **every** node (each node needs its own local copy of the model) |
+| Hardware | {{SPARKS_WORDS_CAP}} DGX {{SPARKS_NOUN_CAP}} (or other GB10 boxes with a ConnectX-7) |
+{{CABLES_ROW}}| OS | DGX OS 7 (Ubuntu 24.04), Docker with the NVIDIA runtime |
+| Disk | TODO GB free NVMe{{DISK_WHERE}} |
 | Image | `{{IMAGE}}` (pinned) |
 | Model | `{{HF_REPO}}` @ `TODO` |
-| Access | SSH from the head node to the workers (`setup.sh` sets up key login); `sudo` for installs and fabric IPs |
+| Access | {{ACCESS}} |
 
 ## Quick start
 
@@ -39,10 +38,18 @@ cd {{REPO}}
 
 `setup.sh` asks how many Sparks you have and their SSH names, then:
 - checks and installs what's missing
+<!-- multi -->
 - works out your cabling and assigns fabric IPs if the ports have none, after asking
+<!-- /multi -->
 - writes `cluster.env` for you
+<!-- multi -->
 - pulls the image and **tests the network with a real NCCL all-reduce** before anything big is downloaded
 - downloads the model once and copies it to the other Sparks
+<!-- /multi -->
+<!-- single -->
+- pulls the image and checks the GPU is visible inside it
+- downloads the model
+<!-- /single -->
 
 It asks before every change. Re-run it any time. `./setup.sh --check` only reports.
 
@@ -54,8 +61,10 @@ Then start it:
 scripts/smoke-test.sh
 ```
 
-Stop with `./run.sh stop`, which stops the container on every node listed in `cluster.env`. Cabling details are in
-[docs/networking.md](docs/networking.md).
+Stop with `./run.sh stop`, which stops the container on every node listed in `cluster.env`.
+<!-- multi -->
+Cabling details are in [docs/networking.md](docs/networking.md).
+<!-- /multi -->
 
 ## Settings
 
@@ -73,8 +82,8 @@ commands and starts nothing.
 | `GRAPHS` | {{SETTINGS_GRAPHS}} | CUDA-graph mode: `default`, `eager` |
 | `EXTRA` / `DOCKER_EXTRA` | {{SETTINGS_EMPTY}} | extra args for vLLM / `docker run` |
 
-The recipe headers in [recipes/](recipes/) list the rest. `cluster.env` values can be overridden the same way
-(`PORT=8001 ./run.sh tp1`).
+{{EXTRA_KNOBS}} be set the same way, and so can any `cluster.env` value
+(`PORT=8001 ./run.sh tp{{TP_MIN}}`).
 
 ## How it works
 
@@ -86,7 +95,7 @@ TODO: one bullet per TP size (memory fit, network, anything patched), plus one p
 `bench/bench.sh LABEL` runs the same suite against whatever is serving on `:8000` (the shared suite from the kit, so
 every recipe is measured the same way):
 - single-stream decode for code, prose and a ~9K-token prompt
-- cold prefill at 8K and 28K tokens with unique prompts (prefix cache off)
+- cold prefill at 8K and 28K tokens (unique prompts, so no prefix-cache hits)
 - the smoke test; add `LONG=1` for the needle test
 
 Results and raw logs go in [bench/results/](bench/results/).

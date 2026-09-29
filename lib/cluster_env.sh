@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # kit/lib/cluster_env.sh — sourced by a recipe's lib/common.sh.
 #
 #   load_cluster_env FILE
@@ -13,5 +14,5 @@ load_cluster_env() {
   done < <(sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*)=([^(].*)?$/\1/p' "$_f")
   # shellcheck disable=SC1090
   source "$_f"
-  for _kv in "${_keep[@]}"; do eval "$_kv"; done
+  for _kv in ${_keep[@]+"${_keep[@]}"}; do eval "$_kv"; done
 }
