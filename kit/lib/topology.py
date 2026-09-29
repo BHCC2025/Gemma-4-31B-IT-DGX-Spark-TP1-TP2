@@ -57,7 +57,6 @@ def main():
     N = len(names)
     errors, warnings, links, assign, env = [], [], [], [], {}
     P = [ports_of(p) for p in probes]
-    own = [set().union(*(p["ll"] for p in ports)) if ports else set() for ports in P]
 
     # LAN
     lan_ifs = {p["lan_if"] for p in probes}
@@ -110,9 +109,6 @@ def main():
             if len(used) == 2 and used[0] == used[1]:
                 errors.append(f"{names[i]}: both neighbours reached through the same port — a triangle needs one "
                               f"cable per port (see docs/networking.md)")
-        extra = [pr for pr in found if pr not in need]
-        if extra:
-            warnings.append(f"unexpected extra cables {extra}")
 
     # IP plan for the chosen links
     taken = {ipaddress.ip_interface(a).network for ports in P for p in ports for a in p["ipv4"]}

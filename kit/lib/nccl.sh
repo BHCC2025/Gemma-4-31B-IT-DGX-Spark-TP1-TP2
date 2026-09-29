@@ -1,3 +1,4 @@
+# shellcheck shell=bash disable=SC2034  # NCCL_ENV / NCCL_MASTER are used by the scripts that source this file
 # kit/lib/nccl.sh — NCCL network profiles for DGX Spark clusters. Sourced by recipes AND by the kit's NCCL test,
 # so the test proves exactly the settings the recipe will run with. Reads cluster.env variables (TP2_*, TP3_HCAS,
 # IB_GID_INDEX, LAN_IF). Each function fills the bash array NCCL_ENV with docker `-e` arguments.
@@ -17,7 +18,7 @@ nccl_env_pair() {
             -e NCCL_SOCKET_IFNAME="$fab_if" -e GLOO_SOCKET_IFNAME="$fab_if" -e TP_SOCKET_IFNAME="$fab_if" -e MN_IF_NAME="$fab_if"
             -e NCCL_NVLS_ENABLE=0 -e NCCL_CROSS_NIC=0 -e NCCL_IB_MERGE_NICS=0 -e NCCL_CUMEM_ENABLE=0
             -e NCCL_BUFFSIZE=1048576 -e NCCL_LL128_BUFFSIZE=262144 -e NCCL_PROTO=^LL128
-            -e NCCL_MAX_NCHANNELS=${NCCL_CHANNELS:-8} ${NCCL_CHANNELS:+-e NCCL_MIN_NCHANNELS=$NCCL_CHANNELS}
+            -e NCCL_MAX_NCHANNELS="${NCCL_CHANNELS:-8}" ${NCCL_CHANNELS:+-e NCCL_MIN_NCHANNELS="$NCCL_CHANNELS"}
             -e NCCL_IGNORE_CPU_AFFINITY=1 -e NCCL_DEBUG="${NCCL_DEBUG:-WARN}" -e TORCH_NCCL_ASYNC_ERROR_HANDLING=1)
   NCCL_MASTER=$TP2_HEAD_IP
 }
@@ -32,12 +33,9 @@ nccl_env_triangle() {
             -e NCCL_SOCKET_IFNAME="$LAN_IF" -e GLOO_SOCKET_IFNAME="$LAN_IF" -e TP_SOCKET_IFNAME="$LAN_IF" -e MN_IF_NAME="$LAN_IF"
             -e NCCL_P2P_DISABLE=1 -e NCCL_SHM_DISABLE=1 -e NCCL_NVLS_ENABLE=0 -e NCCL_CUMEM_ENABLE=0
             -e NCCL_IB_MERGE_NICS=0 -e NCCL_CROSS_NIC=1 -e NCCL_IB_SUBNET_AWARE_ROUTING=1
-            -e NCCL_BUFFSIZE=1048576 -e NCCL_LL128_BUFFSIZE=262144 -e NCCL_PROTO=^LL128 -e NCCL_MAX_NCHANNELS=8
+            -e NCCL_BUFFSIZE=1048576 -e NCCL_LL128_BUFFSIZE=262144 -e NCCL_PROTO=^LL128
+            -e NCCL_MAX_NCHANNELS="${NCCL_CHANNELS:-8}" ${NCCL_CHANNELS:+-e NCCL_MIN_NCHANNELS="$NCCL_CHANNELS"}
             -e NCCL_IGNORE_CPU_AFFINITY=1 -e NCCL_DEBUG="${NCCL_DEBUG:-WARN}" -e TORCH_NCCL_ASYNC_ERROR_HANDLING=1)
   NCCL_MASTER=${LAN_IPS[0]}
 }
 
-# Host IP a rank advertises (VLLM_HOST_IP): the fabric IP for a pair, the LAN IP for a triangle.
-nccl_host_ip() {  # profile rank
-  if [ "$1" = pair ]; then [ "$2" = 0 ] && echo "$TP2_HEAD_IP" || echo "$TP2_WORKER_IP"; else echo "${LAN_IPS[$2]}"; fi
-}

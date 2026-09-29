@@ -16,9 +16,9 @@ STATE="$REPO_DIR/.setup"; mkdir -p "$STATE"
 CHECK=0; YES=0; NODES_ARG=""; SKIP_DL=0; SKIP_NET=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --check) CHECK=1 ;; --yes|-y) YES=1 ;; --nodes) NODES_ARG="$2"; shift ;;
+    --check) CHECK=1 ;; --yes|-y) YES=1 ;; --nodes) NODES_ARG="${2:?--nodes needs a list, e.g. --nodes \"spark1 spark2\"}"; shift ;;
     --skip-download) SKIP_DL=1 ;; --skip-net-test) SKIP_NET=1 ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) echo "unknown option $1 (--help)"; exit 2 ;;
   esac; shift
 done
@@ -51,7 +51,7 @@ j() { python3 -c "import json,sys; d=json.load(open(sys.argv[1])); r=eval(sys.ar
 
 # ---------------------------------------------------------------- run on node i (0 = this machine)
 on()     { local i=$1; shift; if [ "$i" = 0 ]; then bash -c "$*"; else ssh -n -o BatchMode=yes -o ConnectTimeout=8 "${NODES[$i]}" "$*"; fi; }
-on_tty() { local i=$1; shift; if [ "$i" = 0 ]; then bash -c "$*" </dev/tty; else ssh -t -o ConnectTimeout=8 "${NODES[$i]}" "$*" </dev/tty; fi; }
+on_tty() { local i=$1; shift; if [ "$i" = 0 ]; then bash -c "$*" </dev/tty; else ssh -t -q -o ConnectTimeout=8 "${NODES[$i]}" "$*" </dev/tty; fi; }
 on_py()  { local i=$1 f=$2; shift 2
   if [ "$i" = 0 ]; then python3 "$f" "$@"; else ssh -o BatchMode=yes -o ConnectTimeout=8 "${NODES[$i]}" "python3 - $(printf '%q ' "$@")" < "$f"; fi; }
 sync_repo() {
@@ -64,7 +64,8 @@ sync_repo() {
 
 # ---------------------------------------------------------------- recipe
 [ -f "$REPO_DIR/recipe.yaml" ] || { echo "no recipe.yaml in $REPO_DIR"; exit 2; }
-eval "$(python3 "$KIT_DIR/lib/recipe.py" "$REPO_DIR/recipe.yaml")" || { echo "could not read recipe.yaml"; exit 2; }
+RV=$(python3 "$KIT_DIR/lib/recipe.py" "$REPO_DIR/recipe.yaml") || { echo "could not read recipe.yaml (see above)"; exit 2; }
+eval "$RV"
 printf '%s%s%s — setup%s\n' "$B" "$R_NAME" "$N0" "$([ "$CHECK" = 1 ] && echo ' (check only, no changes)')"
 info "model $R_HF_REPO@${R_REVISION:0:8} · image $R_IMAGE · TP sizes: $R_TP"
 info "log $LOG"
@@ -72,17 +73,19 @@ info "log $LOG"
 
 # ---------------------------------------------------------------- 1. nodes and SSH
 step "1. Nodes"
-MAXN=$(tr ' ' '\n' <<< "$R_TP" | sort -n | tail -1)
+MINN=$(tr ' ' '\n' <<< "$R_TP" | sort -n | head -1)
 if [ -n "$NODES_ARG" ]; then read -r -a NODES <<< "$NODES_ARG"
-elif [ -n "${NODES+x}" ] && [ "${#NODES[@]}" -ge 1 ] && ask_yn "Use the nodes from cluster.env: ${NODES[*]}?" y; then :
+elif [ -n "${NODES+x}" ] && [ "${#NODES[@]}" -ge 1 ] \
+     && { [ "$CHECK" = 1 ] || ask_yn "Use the nodes from cluster.env: ${NODES[*]}?" y; }; then
+  [ "$CHECK" = 1 ] && info "nodes from cluster.env: ${NODES[*]} (use --nodes to check others)"
 else
-  ask "How many DGX Sparks? ($R_TP)" 1; n=$REPLY
+  ask "How many DGX Sparks? (${R_TP// /, })" "$MINN"; n=$REPLY
   [[ " $R_TP " == *" $n "* ]] || { bad "this recipe supports $R_TP Sparks, not '$n'"; exit 1; }
   NODES=("$(hostname -s)")
   for ((i = 1; i < n; i++)); do ask "SSH name or IP of Spark $((i + 1))" ""; NODES+=("$REPLY"); done
 fi
 N=${#NODES[@]}
-[ "$N" -le "$MAXN" ] || { bad "$N nodes, but this recipe goes up to $MAXN"; exit 1; }
+[[ " $R_TP " == *" $N "* ]] || { bad "this recipe runs on ${R_TP// / or } Sparks, not $N (${NODES[*]})"; exit 1; }
 ok "head (this machine): $(hostname -s)   workers: ${NODES[*]:1}"
 for ((i = 1; i < N; i++)); do
   h=${NODES[$i]}
@@ -146,10 +149,13 @@ else warn "no hf CLI — the model download step will be skipped"; fi
 
 # ---------------------------------------------------------------- 4. network
 declare -A ENVSET=()
-ENVSET[NODES]="($(printf '%q ' "${NODES[@]}"))"
+ENVSET[NODES]="($(printf '%q ' "${NODES[@]}" | sed 's/ $//'))"
 if [ "$N" -gt 1 ]; then
   step "4. Cabling and fabric IPs"
-  topo() { python3 "$KIT_DIR/lib/topology.py" $(for ((i = 0; i < N; i++)); do printf '%s=%s ' "${NODES[$i]}" "$STATE/probe-$i.json"; done) > "$STATE/topology.json"; }
+  topo() {
+    local i a=(); for ((i = 0; i < N; i++)); do a+=("${NODES[$i]}=$STATE/probe-$i.json"); done
+    python3 "$KIT_DIR/lib/topology.py" "${a[@]}" > "$STATE/topology.json"
+  }
   topo
   python3 - "$STATE/topology.json" <<'PY'
 import json, sys
@@ -225,17 +231,25 @@ else
   elif [ "$CHECK" = 1 ]; then info "check mode: cluster.env not written (proposal in $STATE/cluster.env.new)"
   else warn "cluster.env not written (proposal kept in $STATE/cluster.env.new)"; fi
 fi
-# The tests below use the detected values: cluster.env if it now matches them, otherwise the proposal
-# (check mode, or the user declined to write it).
-if [ -f "$REPO_DIR/cluster.env" ] && cmp -s "$REPO_DIR/cluster.env" "$STATE/cluster.env.new"; then source "$REPO_DIR/cluster.env"
-else source "$STATE/cluster.env.new"; fi
+# The tests below use what ./run.sh will use: cluster.env when there is one (a key it lacks comes from the detected
+# values), otherwise the detected values. The nodes and model directory chosen in this run are kept.
+_nodes=("${NODES[@]}"); _mdir=$MODEL_DIR
+source "$STATE/cluster.env.new"
+if [ -f "$REPO_DIR/cluster.env" ]; then
+  source "$REPO_DIR/cluster.env"
+  cmp -s "$REPO_DIR/cluster.env" "$STATE/cluster.env.new" || info "the tests below use cluster.env as it is (what ./run.sh uses), not the proposal"
+fi
+NODES=("${_nodes[@]}"); MODEL_DIR=$_mdir
 [ "$CHECK" = 0 ] && [ "$N" -gt 1 ] && sync_repo
 
 # ---------------------------------------------------------------- 6. image
 step "6. Container image"
 for ((i = 0; i < N; i++)); do
   h=${NODES[$i]}
-  if [ "$(j "$STATE/probe-$i.json" 'd["image_present"]')" != True ]; then
+  if [ "$(j "$STATE/probe-$i.json" 'd["docker_ok"]')" != True ] && ! on "$i" "docker info >/dev/null 2>&1"; then
+    warn "$h: image check skipped until Docker works for $(j "$STATE/probe-$i.json" 'd["user"]') (see step 3)"; continue
+  fi
+  if [ "$(j "$STATE/probe-$i.json" 'd["image_present"]')" != True ] && ! on "$i" "docker image inspect $R_IMAGE >/dev/null 2>&1"; then
     if ask_yn "Pull $R_IMAGE on $h (~20 GB)?" y; then on "$i" "docker pull -q $R_IMAGE" >/dev/null && ok "$h: image pulled" || { bad "$h: docker pull failed"; continue; }
     else bad "$h: image missing"; continue; fi
   fi
@@ -255,8 +269,13 @@ nccl_run() {  # profile world
     on "$r" "docker rm -f kit_nccl_check >/dev/null 2>&1; docker run -d --name kit_nccl_check --gpus all --network host --ipc host \
       --shm-size 8g --ulimit memlock=-1:-1 --cap-add IPC_LOCK --device /dev/infiniband:/dev/infiniband \
       $(printf '%q ' "${NCCL_ENV[@]}") --entrypoint python3 $R_IMAGE \
-      -c $prog --rank $r --world $W --master $NCCL_MASTER --port $port >/dev/null" || rc=1
+      -c $prog --rank $r --world $W --master $NCCL_MASTER --port $port >/dev/null" \
+      || { bad "${NODES[$r]}: could not start the NCCL test container"; rc=1; }
   done
+  if [ "$rc" != 0 ]; then
+    for ((r = 0; r < W; r++)); do on "$r" "docker rm -f kit_nccl_check >/dev/null 2>&1"; done
+    return
+  fi
   out=$(on 0 "timeout 240 docker wait kit_nccl_check >/dev/null; docker logs kit_nccl_check 2>&1 | tail -40")
   for ((r = 0; r < W; r++)); do on "$r" "docker rm -f kit_nccl_check >/dev/null 2>&1"; done
   local res; res=$(grep -E '^\{"ok"' <<< "$out" | tail -1)
@@ -264,8 +283,8 @@ nccl_run() {  # profile world
     ok "NCCL all-reduce, $prof profile, $W Sparks: $(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(f\"{d['busbw_GBps']} GB/s bus bandwidth ({d['mb']} MB, {d['ms']} ms, NCCL {d['nccl']})\")" "$res")"
     note "nccl $prof x$W: $res"
   else
-    bad "NCCL all-reduce, $prof profile, $W Sparks failed"; grep -E 'NCCL WARN|Error|error' <<< "$out" | head -8 | sed 's/^/          /'
-    info "full output: rerun with NCCL_DEBUG=INFO ./setup.sh --skip-download"
+    bad "NCCL all-reduce, $prof profile, $W Sparks failed"; tail -15 <<< "$out" | sed 's/^/          /'
+    info "more detail: NCCL_DEBUG=INFO ./setup.sh --skip-download"
   fi
 }
 if [ "$N" -gt 1 ] && [ "$SKIP_NET" = 0 ]; then
@@ -273,14 +292,14 @@ if [ "$N" -gt 1 ] && [ "$SKIP_NET" = 0 ]; then
   busy=$(for ((i = 0; i < N; i++)); do j "$STATE/probe-$i.json" '[c for c in d["containers"] if c != "kit_nccl_check" and "dash" not in c.lower()]'; done | xargs)
   if [ "$CHECK" = 1 ] && [ -n "$busy" ]; then warn "containers running ($busy) — skipping the live network test"
   elif [ -n "$busy" ] && ! ask_yn "Containers are running ($busy). Run the network test anyway (needs ~2 GB GPU memory per node)?" n; then
-    warn "network test skipped"
+    warn "network test skipped: containers are running ($busy); stop them and re-run to test the network"
   else
     while IFS=$'\t' read -r ia ib hca_a hca_b gid ipb; do
-      on "$ib" "pkill -x ib_write_bw; nohup timeout 30 ib_write_bw -d $hca_b -x $gid -F --report_gbits -D 4 -q 4 >/tmp/kit_ibbw.log 2>&1 &"; sleep 2
+      on "$ib" "pkill -u \$(id -u) -x ib_write_bw; nohup timeout 30 ib_write_bw -d $hca_b -x $gid -F --report_gbits -D 4 -q 4 >/dev/null 2>&1 &"; sleep 2
       bw=$(on "$ia" "ib_write_bw -d $hca_a -x $gid -F --report_gbits -D 4 -q 4 ${ipb%/*} 2>&1" | awk '$1 ~ /^[0-9]+$/ && NF >= 5 {v=$4} END {print v}')
       if [ -n "$bw" ]; then
         if python3 -c "import sys; sys.exit(0 if float('$bw') >= 80 else 1)"; then ok "RDMA ${NODES[$ia]} -> ${NODES[$ib]} ($hca_a): $bw Gb/s"
-        else warn "RDMA ${NODES[$ia]} -> ${NODES[$ib]} ($hca_a): only $bw Gb/s (expect ~90+ per port)"; fi
+        else warn "RDMA ${NODES[$ia]} -> ${NODES[$ib]} ($hca_a): only $bw Gb/s (expect ~110 per cable)"; fi
         note "rdma ${NODES[$ia]}->${NODES[$ib]} $hca_a: $bw Gb/s"
       else bad "RDMA test ${NODES[$ia]} -> ${NODES[$ib]} ($hca_a) failed"; fi
     done < <(python3 -c "import json; [print(l['pair'][0], l['pair'][1], l['a']['hca'], l['b']['hca'], l['a']['gid'] if l['a']['gid'] is not None else 5, l['b']['ip'], sep='\t') for l in json.load(open('$STATE/topology.json'))['links']]")
@@ -301,6 +320,7 @@ else
     mkdir -p "$MODEL_DIR" && "$HF_BIN" download "$R_HF_REPO" --revision "$R_REVISION" --local-dir "$MODEL_DIR" \
       && ok "downloaded to $MODEL_DIR" \
       || bad "download failed (gated model? run: $HF_BIN auth login)"
+  else warn "head: $R_HF_REPO not downloaded yet ($MODEL_DIR)"
   fi
   if [ "$(python3 "$KIT_DIR/lib/probe.py" --no-neighbors --model-dir "$MODEL_DIR" | python3 -c 'import json,sys; print(json.load(sys.stdin)["model_state"])')" = complete ]; then
     for ((i = 1; i < N; i++)); do
@@ -308,6 +328,7 @@ else
       if ask_yn "Copy the model to ${NODES[$i]} (~${R_DISK_GB} GB over SSH)?" y; then
         on "$i" "mkdir -p $(printf %q "$MODEL_DIR")" && rsync -a --info=progress2 --exclude .cache/ "$MODEL_DIR/" "${NODES[$i]}:$MODEL_DIR/" \
           && ok "${NODES[$i]}: model copied" || bad "${NODES[$i]}: copy failed"
+      else warn "${NODES[$i]}: model not copied yet"
       fi
     done
     pv="R_PREPARE_$N"
@@ -338,4 +359,5 @@ fi
 [ "$CHECK" = 1 ] && printf '\n%sCheck complete — nothing to fix.%s ' "$G" "$N0" || printf '\n%sReady.%s ' "$G" "$N0"
 [ "${#WARNS[@]}" -gt 0 ] && printf '(%d warning(s) above) ' "${#WARNS[@]}"
 rv="R_RUN_$N"; echo; echo "Start it with:  ${!rv:-./run.sh}"
-[ -n "${R_SMOKE:-}" ] && echo "Then check it:  $R_SMOKE"
+if [ -n "${R_SMOKE:-}" ]; then echo "Then check it:  $R_SMOKE"; fi
+exit 0

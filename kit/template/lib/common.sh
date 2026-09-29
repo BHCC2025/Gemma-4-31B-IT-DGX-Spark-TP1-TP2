@@ -1,3 +1,4 @@
+# shellcheck shell=bash disable=SC2034  # the arrays built here are used by recipes/tpN.sh
 # lib/common.sh — shared by recipes/tpN.sh. Sourced, not run.
 # Builds the bash arrays each launcher splices into `docker run`. Every knob is an env var with a per-TP default
 # that the launcher sets before calling build_all.
@@ -19,8 +20,8 @@ SERVED_NAMES="${SERVED_NAMES:-{{SERVED}}}"
 CACHE_DIR="${CACHE_DIR:-/var/tmp/{{SLUG}}-vllm-cache}"
 
 # Variables forwarded from the head to the workers so every rank runs the same config.
-FORWARD_VARS=(IMAGE NAME GMU MAXLEN SEQS CHUNK KV_DTYPE GRAPHS PREFIX_CACHE PORT MPORT
-              IB_GID_INDEX_TP2 NCCL_DEBUG NCCL_CHANNELS EXTRA DOCKER_EXTRA)
+FORWARD_VARS=(IMAGE NAME GMU MAXLEN SEQS CHUNK KV_DTYPE GRAPHS PREFIX_CACHE PORT MPORT MODEL_DIR CACHE_DIR
+              IB_GID_INDEX IB_GID_INDEX_TP2 NCCL_DEBUG NCCL_CHANNELS EXTRA DOCKER_EXTRA)
 forward_env() {
   local v out=""
   for v in "${FORWARD_VARS[@]}"; do [ -n "${!v+x}" ] && out+="$v=$(printf %q "${!v}") "; done

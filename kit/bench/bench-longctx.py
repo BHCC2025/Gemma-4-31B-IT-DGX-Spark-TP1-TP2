@@ -5,8 +5,8 @@ usage: bench-longctx.py BASE_URL MODEL --ktok 128 256 512 900 [--needles 3] [--g
 For each size: builds varied filler (random sentences, not one repeated line, so attention cannot shortcut it),
 hides N passphrases at evenly spaced depths, streams one request and reports prompt tokens, time to first token
 (= prefill), prefill tok/s, decode tok/s over the answer, and how many passphrases came back exactly.
-Sizes are hit with the server's /tokenize endpoint, so --ktok is real model tokens. Prefix caching is off on these
-servers, so every request is a cold prefill.
+Sizes are hit with the server's /tokenize endpoint, so --ktok is real model tokens. Every size uses different
+random filler, so each request is a cold prefill even with prefix caching on.
 """
 import argparse, json, random, time, urllib.request
 
