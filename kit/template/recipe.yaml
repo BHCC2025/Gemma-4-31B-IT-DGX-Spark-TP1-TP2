@@ -1,0 +1,31 @@
+# recipe.yaml — machine-readable summary. Same schema in every BHCC2025 DGX Spark recipe repo.
+schema: 1
+name: <Model>-DGX-Spark-TP1-TP3
+model:
+  hf_repo: <org>/<model>
+  revision: <full commit sha>
+  size_on_disk_gb: 0
+engine:
+  name: vllm
+  image: <image:tag>
+  image_digest: sha256:<digest>
+hardware: NVIDIA DGX Spark (GB10, 128 GB unified memory)
+api: {port: 8000, served_model_name: <name>, openai_compatible: true}
+
+setup:                       # read by kit/setup.sh
+  model_dir: /var/tmp/models/<model>    # default; same path on every node
+  disk_gb: 0                 # free space needed per node
+  tp_sizes: [1, 2, 3]        # node counts this recipe supports
+  prepare:                   # commands run on the head after the model is on every node, keyed by node count
+    3: [scripts/<prep>.sh]
+  first_run: {1: ./run.sh tp1, 2: ./run.sh tp2, 3: ./run.sh tp3}
+  smoke_test: scripts/smoke-test.sh
+
+# verified: true only after bench/bench.sh ran on our own Sparks with this repo's launcher.
+recipes:
+  - id: tp1
+    nodes: 1
+    command: ./run.sh tp1
+    max_model_len: 0
+    decode_tok_s: {code: 0, prose: 0, source: bench/results/<date>-tp1.md}
+    verified: false
