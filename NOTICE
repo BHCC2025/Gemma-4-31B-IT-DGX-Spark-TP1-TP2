@@ -1,0 +1,14 @@
+Gemma-4-31B-IT-DGX-Spark-TP1-TP2
+Copyright 2026 BHCC2025. Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+All code in this repository is original, except:
+
+1. kit/ — dgx-spark-recipe-kit (BHCC2025, Apache-2.0), vendored at a tagged release via git subtree.
+2. bench/ and scripts/smoke-test.sh — shared with the other BHCC2025 recipe repos (same authors, same licence).
+
+This repository contains no model weights. ./setup.sh downloads, from Hugging Face:
+- nvidia/Gemma-4-31B-IT-NVFP4 (NVIDIA's NVFP4 quantization of Google's Gemma 4 31B IT)
+- google/gemma-4-31B-it-assistant (Google's speculative-decoding draft model)
+Both are distributed under the Gemma terms of use, which you accept on Hugging Face before downloading.
+
+Container image: vllm/vllm-openai (vLLM project, Apache-2.0), used unmodified.

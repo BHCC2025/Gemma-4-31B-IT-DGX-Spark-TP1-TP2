@@ -1,0 +1,40 @@
+=== bench tp2-d1 2026-09-29T09:55:45-05:00 http://127.0.0.1:8000/v1
+model=gemma-4-31b-it max_model_len=262144 host=spark1
+               total        used        free      shared  buff/cache   available
+Mem:             121         102           1           0          19          18
+--- short code, 3 runs
+model=gemma-4-31b-it base=http://127.0.0.1:8000/v1 long_k=0 runs=3 max_tokens=512 no_think=False code=True
+run1: prompt=57 gen=512 ttft=0.22s prefill=258 tok/s decode=22.4 tok/s total=23.1s
+run2: prompt=57 gen=512 ttft=0.21s prefill=270 tok/s decode=22.2 tok/s total=23.3s
+run3: prompt=57 gen=512 ttft=0.22s prefill=265 tok/s decode=22.3 tok/s total=23.2s
+MEDIAN decode=22.3 tok/s  prefill=265 tok/s
+--- short prose, 3 runs
+model=gemma-4-31b-it base=http://127.0.0.1:8000/v1 long_k=0 runs=3 max_tokens=512 no_think=False code=False
+run1: prompt=30 gen=512 ttft=0.14s prefill=212 tok/s decode=20.3 tok/s total=25.4s
+run2: prompt=30 gen=512 ttft=0.13s prefill=224 tok/s decode=19.8 tok/s total=25.9s
+run3: prompt=30 gen=512 ttft=0.14s prefill=219 tok/s decode=20.5 tok/s total=25.1s
+MEDIAN decode=20.3 tok/s  prefill=219 tok/s
+--- long ~9K prompt, 2 runs
+model=gemma-4-31b-it base=http://127.0.0.1:8000/v1 long_k=12 runs=2 max_tokens=512 no_think=False code=False
+run1: prompt=9298 gen=58 ttft=4.87s prefill=1910 tok/s decode=16.8 tok/s total=8.3s
+run2: prompt=9298 gen=69 ttft=4.88s prefill=1904 tok/s decode=17.5 tok/s total=8.8s
+MEDIAN decode=17.2 tok/s  prefill=1907 tok/s
+--- cold prefill 8K x3
+cold prefill: gemma-4-31b-it @ http://127.0.0.1:8000/v1  target ~8K tokens, 3 runs, unique prompt each time
+  run1: prompt=6727 ttft=3.38s prefill=1989 tok/s total=3.59s
+  run2: prompt=6755 ttft=3.33s prefill=2029 tok/s total=3.53s
+  run3: prompt=6735 ttft=3.49s prefill=1927 tok/s total=3.80s
+MEDIAN cold prefill = 1989 tok/s
+--- cold prefill 28K x2
+cold prefill: gemma-4-31b-it @ http://127.0.0.1:8000/v1  target ~28K tokens, 2 runs, unique prompt each time
+  run1: prompt=23422 ttft=17.51s prefill=1337 tok/s total=18.11s
+  run2: prompt=23401 ttft=17.55s prefill=1334 tok/s total=18.14s
+MEDIAN cold prefill = 1336 tok/s
+--- smoke test
+PASS  arithmetic
+PASS  fact
+PASS  code
+PASS  thinking
+PASS  tool call
+model gemma-4-31b-it: ALL PASS
+=== done 2026-09-29T10:04:55-05:00 -> bench/results/2026-09-29-tp2-d1.log

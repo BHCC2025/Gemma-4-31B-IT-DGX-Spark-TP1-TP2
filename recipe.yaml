@@ -1,0 +1,49 @@
+# recipe.yaml — machine-readable summary. Same schema in every BHCC2025 DGX Spark recipe repo.
+schema: 1
+name: Gemma-4-31B-IT-DGX-Spark-TP1-TP2
+model:
+  hf_repo: nvidia/Gemma-4-31B-IT-NVFP4
+  revision: 4135a98a9b728a548947683219633b25682223ac
+  size_on_disk_gb: 31
+  draft:                     # speculative-decoding draft model, fetched by scripts/get-draft-model.sh
+    hf_repo: google/gemma-4-31B-it-assistant
+    revision: 627c5ec1458b9086b841a91e0512fd31fd2fbbf1
+    size_on_disk_gb: 1
+engine:
+  name: vllm
+  image: vllm/vllm-openai:v0.29.0
+  image_digest: sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+hardware: NVIDIA DGX Spark (GB10, 128 GB unified memory)
+api: {port: 8000, served_model_name: gemma-4-31b-it, openai_compatible: true}
+
+setup:                       # read by kit/setup.sh
+  model_dir: /var/tmp/models/Gemma-4-31B-IT-NVFP4    # default; same path on every node
+  disk_gb: 33                # target + draft model, per node
+  tp_sizes: [1, 2]
+  prepare:                   # run on the head after the model is on every node, keyed by node count
+    1: [scripts/get-draft-model.sh]
+    2: [scripts/get-draft-model.sh]
+  first_run: {1: ./run.sh tp1, 2: ./run.sh tp2}
+  smoke_test: scripts/smoke-test.sh
+
+# verified: true only after bench/bench.sh ran on our own Sparks with this repo's launcher.
+recipes:
+  - id: tp1
+    nodes: 1
+    command: ./run.sh tp1
+    max_model_len: 262144
+    decode_tok_s: {code: 24.2, prose: 16.6, source: bench/results/2026-09-29-tp1-tp2.md}
+    prefill_cold_8k_tok_s: 1409
+    draft_tokens: 4
+    verified: true
+    verified_date: 2026-09-29
+  - id: tp2
+    nodes: 2
+    cabling: one QSFP cable
+    command: ./run.sh tp2
+    max_model_len: 262144
+    decode_tok_s: {code: 40.6, prose: 28.0, source: bench/results/2026-09-29-tp1-tp2.md}
+    prefill_cold_8k_tok_s: 1905
+    draft_tokens: 4
+    verified: true
+    verified_date: 2026-09-29
