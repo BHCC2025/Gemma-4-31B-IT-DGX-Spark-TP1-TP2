@@ -5,7 +5,7 @@ vllm_gemma4_31b` on the worker).
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Download fails with 401/403 | Gemma terms not accepted for both repos, or not logged in | Accept the terms on the Hugging Face pages of `nvidia/Gemma-4-31B-IT-NVFP4` and `google/gemma-4-31B-it-assistant`, then `hf auth login` |
+| Download fails | No internet access, a proxy, or a wrong revision (neither model needs a login) | Accept the terms on the Hugging Face pages of `nvidia/Gemma-4-31B-IT-NVFP4` and `google/gemma-4-31B-it-assistant`, then `hf auth login` |
 | `MODEL MISSING at .../gemma-4-31B-it-assistant` | Draft model not on that node | `scripts/get-draft-model.sh` (or run with `SPEC=ngram` / `SPEC=off`) |
 | Head waits forever for the worker | Wrong `TP2_*` values, a firewall on `MPORT` (29531), or the worker exited | `docker logs vllm_gemma4_31b` on the worker; `./run.sh stop` and start again |
 | TP2 much slower than expected | NCCL fell back to TCP sockets | Start it with `NCCL_DEBUG=INFO ./run.sh tp2`; the log should show `NET/IB`. Re-run `./setup.sh --check` and check the `TP2_*` HCA names |

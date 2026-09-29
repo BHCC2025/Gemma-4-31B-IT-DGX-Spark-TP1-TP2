@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3 — 2026-09-29
+
+- Quick start opens with a "Before you start" checklist (DGX OS, the cables, and that Hugging Face needs nothing).
+- Corrected: neither model is gated on Hugging Face, so no login or licence acceptance is needed to download them
+  (checked with an anonymous download). The README, troubleshooting, NOTICE and `scripts/get-draft-model.sh` said
+  otherwise.
+- `kit/` updated to dgx-spark-recipe-kit v0.4.0: `./setup.sh` test-downloads one small file of the model right after
+  the dependencies, so a network problem (or, for a gated model, a missing licence or login) shows up before
+  anything big happens.
+- Launch commands unchanged (checked with `DRY_RUN=1`).
+
 ## 0.1.2 — 2026-09-29
 
 - `kit/` updated to dgx-spark-recipe-kit v0.3.0: `./setup.sh --check` checks every node in `cluster.env` (it only

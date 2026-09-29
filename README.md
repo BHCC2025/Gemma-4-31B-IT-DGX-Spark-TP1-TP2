@@ -32,9 +32,15 @@ The draft model speeds up decode 2.4–3.6× (6.8 tok/s without it on one Spark)
 | Disk | ~33 GB free NVMe on **every** node (each node needs its own local copy of both models) |
 | Image | `vllm/vllm-openai:v0.29.0` (pinned tag; its digest is in `recipe.yaml`) |
 | Model | `nvidia/Gemma-4-31B-IT-NVFP4` @ `4135a98a`, draft `google/gemma-4-31B-it-assistant` @ `627c5ec1` |
-| Access | A Hugging Face login that has accepted the Gemma terms (`hf auth login`); SSH from the head node to the worker (`setup.sh` sets up key login); `sudo` for installs and fabric IPs |
+| Access | SSH from the head node to the worker (`setup.sh` sets up key login); `sudo` for installs and fabric IPs. No Hugging Face login: both models download without one |
 
 ## Quick start
+
+Before you start:
+- DGX OS 7 on every Spark, with its current updates.
+- For TP2, the QSFP cable connected: one cable between the two Sparks.
+  No IP addresses are needed on the cabled ports; `./setup.sh` assigns them ([docs/networking.md](docs/networking.md)).
+- Nothing to set up on Hugging Face: both models download without a login, and `./setup.sh` tests that first.
 
 On the Spark you'll serve from (the head node):
 
@@ -107,7 +113,7 @@ Results and raw logs go in [bench/results/](bench/results/).
 
 Run `./setup.sh --check` and read the FAIL lines. It writes `.setup/report.txt`, which is what to attach to an issue.
 See also [docs/troubleshooting.md](docs/troubleshooting.md). The two most common problems:
-- Download fails with 401/403: the Gemma terms haven't been accepted on Hugging Face for both repos, or `hf auth login` wasn't run.
+- Download fails: `./setup.sh` test-downloads one small file first (step 3) and says why (no internet access, a proxy, a wrong revision).
 - Out of memory while loading: other containers are still running, or page cache is taking memory. Run `./run.sh stop` on everything and check `free -g`.
 
 ## Credits

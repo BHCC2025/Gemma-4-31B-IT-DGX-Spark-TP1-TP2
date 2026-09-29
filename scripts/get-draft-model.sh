@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/get-draft-model.sh — fetch the speculative-decoding draft model (~1 GB) to DRAFT_DIR on the head and
 # copy it to every other node in NODES. Run by ./setup.sh after the target model is in place; safe to re-run.
-# The draft repo is gated like the target: accept Google's Gemma licence on Hugging Face and `hf auth login` first.
+# The draft repo is not gated: no Hugging Face login is needed.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
@@ -17,7 +17,7 @@ else
   [ -n "$HF_BIN" ] || { echo "no hf CLI — run ./setup.sh first" >&2; exit 2; }
   mkdir -p "$DRAFT_DIR"
   "$HF_BIN" download "$DRAFT_REPO" --revision "$DRAFT_REV" --local-dir "$DRAFT_DIR" \
-    || { echo "download failed (gated model? accept the licence on huggingface.co/$DRAFT_REPO, then: $HF_BIN auth login)" >&2; exit 1; }
+    || { echo "downloading $DRAFT_REPO failed (internet access? ./setup.sh --check tests the connection)" >&2; exit 1; }
 fi
 
 for h in "${NODES[@]:1}"; do
