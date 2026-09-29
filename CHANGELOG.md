@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.1 — 2026-09-29
+
+- `kit/` updated to dgx-spark-recipe-kit v0.2.1 (the TP2 network settings were already v0.1.2's):
+  - `bench/bench.sh` and `scripts/smoke-test.sh` now run the kit's shared suite (same test code as before), so every
+    recipe is measured the same way.
+  - `./setup.sh --check` works on a fresh 2-Spark clone (it used to fail or stop in the network test).
+- `cluster.env` values can be overridden from the environment for one run (`PORT=8001 ./run.sh tp1`); they used to
+  be silently ignored.
+- `DRY_RUN=1` prints the docker commands before the models are downloaded (it stopped at MODEL MISSING).
+- `./run.sh status` checks the head locally instead of over SSH to itself.
+- Launch commands are unchanged (checked with `DRY_RUN=1`), so the 0.1.0 numbers stand.
+
 ## 0.1.0 — 2026-09-29
 
 - First version: TP1 and TP2 behind one `run.sh`, configured through `cluster.env`, set up with `./setup.sh`

@@ -4,7 +4,7 @@ Copyright 2026 BHCC2025. Licensed under the Apache License, Version 2.0 (see LIC
 All code in this repository is original, except:
 
 1. kit/ — dgx-spark-recipe-kit (BHCC2025, Apache-2.0), vendored at a tagged release via git subtree.
-2. bench/ and scripts/smoke-test.sh — shared with the other BHCC2025 recipe repos (same authors, same licence).
+2. bench/bench.sh and scripts/smoke-test.sh run the kit's shared benchmark and smoke test (kit/bench/).
 
 This repository contains no model weights. ./setup.sh downloads, from Hugging Face:
 - nvidia/Gemma-4-31B-IT-NVFP4 (NVIDIA's NVFP4 quantization of Google's Gemma 4 31B IT)

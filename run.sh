@@ -27,9 +27,10 @@ case "$cmd" in
     stop_on "${NODES[@]:1}"; docker rm -f "$NAME" >/dev/null 2>&1 || true
     echo "stopped $NAME on ${NODES[*]}" ;;
   status)
-    for h in "${NODES[@]}"; do
-      printf '%-10s ' "$h"
-      ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$h" "docker ps -a --filter name=^${NAME}\$ --format '{{.Status}}'" 2>/dev/null | grep . || echo "-"
+    for i in "${!NODES[@]}"; do
+      h=${NODES[$i]}; printf '%-10s ' "$h"
+      q="docker ps -a --filter name=^${NAME}\$ --format '{{.Status}}'"
+      if [ "$i" = 0 ]; then bash -c "$q"; else ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$h" "$q" 2>/dev/null; fi | grep . || echo "-"
     done
     curl -sf "http://127.0.0.1:$PORT/v1/models" | python3 -c 'import json,sys; print("serving:", [m["id"] for m in json.load(sys.stdin)["data"]])' \
       || echo "API on :$PORT not answering (yet) — loading takes a few minutes; ./run.sh logs" ;;

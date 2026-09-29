@@ -3,12 +3,11 @@
 # that the launcher sets before calling build_all.
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-if [ -f "$REPO_DIR/cluster.env" ]; then
-  # shellcheck disable=SC1091
-  source "$REPO_DIR/cluster.env"
-else
-  echo "no $REPO_DIR/cluster.env — run ./setup.sh (or cp cluster.env.example cluster.env and edit it)" >&2; exit 2
-fi
+[ -f "$REPO_DIR/cluster.env" ] \
+  || { echo "no $REPO_DIR/cluster.env — run ./setup.sh (or cp cluster.env.example cluster.env and edit it)" >&2; exit 2; }
+# cluster.env, with anything already set in the environment taking precedence (PORT=8001 ./run.sh tp1)
+# shellcheck disable=SC1091
+source "$REPO_DIR/kit/lib/cluster_env.sh"; load_cluster_env "$REPO_DIR/cluster.env"
 
 # NCCL network profile (pair) lives in the shared kit so ./setup.sh tests exactly these settings.
 # shellcheck disable=SC1091
@@ -85,8 +84,10 @@ build_misc() {
 
 build_all() { build_spec; build_misc; }
 
-check_model() {  # dir
-  test -f "$1/config.json" || { echo "MODEL MISSING at $1 on $(hostname) — run ./setup.sh" >&2; exit 3; }
+check_model() {  # dir — DRY_RUN=1 only notes a missing model, so the commands can be printed before any download
+  [ -f "$1/config.json" ] && return 0
+  if [ "${DRY_RUN:-0}" = 1 ]; then echo "# note: no model at $1 on $(hostname) yet — ./setup.sh downloads it" >&2; return 0; fi
+  echo "MODEL MISSING at $1 on $(hostname) — run ./setup.sh" >&2; exit 3
 }
 
 # DRY_RUN=1 prints the docker command instead of running it.

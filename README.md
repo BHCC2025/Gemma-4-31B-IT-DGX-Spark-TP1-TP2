@@ -65,8 +65,8 @@ Stop with `./run.sh stop`, which stops the container on every node listed in `cl
 
 ## Settings
 
-Set any of these in the environment for one run (`DRAFT_TOKENS=6 SEQS=8 ./run.sh tp2`). `DRY_RUN=1` prints the
-docker commands and starts nothing.
+Set any of these in the environment for one run (`DRAFT_TOKENS=6 SEQS=8 ./run.sh tp2`); `cluster.env` values can
+be overridden the same way (`PORT=8001 ./run.sh tp1`). `DRY_RUN=1` prints the docker commands and starts nothing.
 
 | Variable | TP1 | TP2 | What it does |
 |---|---|---|---|
@@ -93,7 +93,8 @@ The recipe headers in [recipes/](recipes/) list the rest.
 
 ## Benchmarks
 
-`bench/bench.sh LABEL` runs the same suite against whatever is serving on `:8000`:
+`bench/bench.sh LABEL` runs the kit's shared suite (`kit/bench/`, the same for every recipe) against whatever is
+serving on `:8000`:
 - single-stream decode for code, prose and a ~9K-token prompt
 - cold prefill at 8K and 28K tokens with unique prompts (prefix cache off)
 - the smoke test; add `LONG=1` for the needle test
