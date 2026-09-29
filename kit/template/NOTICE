@@ -1,0 +1,14 @@
+{{REPO}}
+Copyright {{YEAR}} BHCC2025. Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+All code in this repository is original, except:
+
+1. kit/ — dgx-spark-recipe-kit (BHCC2025, Apache-2.0), vendored at a tagged release via git subtree. It includes the
+   shared benchmark and smoke test that bench/bench.sh and scripts/smoke-test.sh run.
+2. TODO: every vendored file or patch, with its source repository, commit, author and licence
+   (and a patches/<name>/PROVENANCE.md for each patch). Delete this item if there are none.
+
+This repository contains no model weights. ./setup.sh downloads {{HF_REPO}} from Hugging Face, under the
+model's own licence.
+
+Container image: {{IMAGE}} (vLLM project, Apache-2.0), used unmodified.
