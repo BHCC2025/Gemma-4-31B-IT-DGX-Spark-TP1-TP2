@@ -26,7 +26,7 @@ Put those values in the `TP2_*` lines of `cluster.env` (`./setup.sh` does it for
 from `NCCL_IB_ADDR_FAMILY` and `NCCL_IB_ADDR_RANGE`. If it doesn't, pin it with `IB_GID_INDEX_TP2=5`.
 
 The NCCL settings are the kit's pair profile (`kit/lib/nccl.sh`), the same one `./setup.sh` tests with a real
-all-reduce. Measured on the reference cluster: ~112 Gb/s RDMA on the cable, NCCL all-reduce ~11.7 GB/s.
+all-reduce. On our Sparks, `./setup.sh` reports ~112 Gb/s RDMA on the cable and an NCCL all-reduce of ~11.5–11.9 GB/s.
 
 ## Making the IPs permanent
 

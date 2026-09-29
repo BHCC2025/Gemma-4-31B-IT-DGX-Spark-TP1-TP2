@@ -12,3 +12,6 @@ This repository contains no model weights. ./setup.sh downloads, from Hugging Fa
 Both are distributed under the Gemma terms of use, which you accept on Hugging Face before downloading.
 
 Container image: vllm/vllm-openai (vLLM project, Apache-2.0), used unmodified.
+
+Which vLLM images can load the Gemma 4 draft model, and single-Spark Gemma 4 measurements, follow
+EmanueleMeazzo/gemma-4-dgx-spark-vllm. No code from that repository is included.

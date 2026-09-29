@@ -5,6 +5,7 @@ model:
   hf_repo: nvidia/Gemma-4-31B-IT-NVFP4
   revision: 4135a98a9b728a548947683219633b25682223ac
   size_on_disk_gb: 31
+  quantization: NVFP4 (ModelOpt)
   draft:                     # speculative-decoding draft model, fetched by scripts/get-draft-model.sh
     hf_repo: google/gemma-4-31B-it-assistant
     revision: 627c5ec1458b9086b841a91e0512fd31fd2fbbf1

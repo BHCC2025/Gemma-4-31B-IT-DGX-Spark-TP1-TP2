@@ -1,6 +1,6 @@
 # Draft model: speculative decoding
 
-Google publishes a small draft model for Gemma 4 31B, `google/gemma-4-31B-it-assistant` (~0.5B parameters, BF16,
+Google publishes a small draft model for Gemma 4 31B, `google/gemma-4-31B-it-assistant` (BF16,
 927 MB). Each step it proposes `DRAFT_TOKENS` tokens, and the 31B model checks them all in one forward pass. Every
 accepted token is one the big model didn't have to generate on its own, which is what makes a dense,
 bandwidth-limited model like this one faster.
@@ -28,9 +28,10 @@ Measured on our Sparks with `bench/bench.sh` (full table in
 | **4 (default)** | **24.2 / 16.6** | **40.6 / 28.0** |
 | 6 | 29.0 / 17.5 | 44.2 / 28.9 |
 
-- **4** is the default: prose and long prompts stop improving there.
+- **4** is the default: beyond it, prose and the long prompt gain 5.5% at most (code 20% on one Spark).
 - **6** for single-user coding: code keeps gaining because it is predictable, but results vary more run to run.
-- **Lower** (2–3) if many requests share the server: rejected draft tokens are wasted work under load.
+- **Lower** (2–3) if many requests share the server: rejected draft tokens are wasted work under load (not measured
+  here; the bench is single-stream).
 - `SPEC=ngram` (prompt lookup, no draft model) and `SPEC=off` are there for comparison.
 
 ## Cost

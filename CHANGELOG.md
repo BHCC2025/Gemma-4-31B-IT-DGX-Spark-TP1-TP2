@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.2 — 2026-09-29
+
+- `kit/` updated to dgx-spark-recipe-kit v0.3.0: `./setup.sh --check` checks every node in `cluster.env` (it only
+  checked the head), the RDMA test works for a second user on the same machine, and the benchmark refuses to file
+  another model's results here. Tested end to end as a brand-new account on two Sparks.
+- README and results corrected against the logs: the draft model speeds decode up 2.4–3.6× (not "triples"); TP2 is
+  1.4–1.8× TP1 (not "1.7× at every setting"); beyond 4 draft tokens prose gains 5.5% at most; the acceptance-rate
+  figure is removed (the bench doesn't record it); the image is a pinned tag with its digest in `recipe.yaml`.
+- Documented, from the logs: with the draft model on, vLLM v0.29.0 gets no prefix-cache hits (`SPEC=off` has them).
+- `MODEL_DIR`, `DRAFT_DIR` and `CACHE_DIR` overrides now reach the TP2 worker too; `scripts/get-draft-model.sh`
+  honours overrides and stops with an error if copying to a worker fails.
+- `DRY_RUN=1` prints only the docker commands; `./run.sh` usage no longer prints code.
+- NOTICE credits EmanueleMeazzo/gemma-4-dgx-spark-vllm; GitHub issue template asking for the setup report.
+- Launch commands unchanged (checked with `DRY_RUN=1` against 0.1.1), so the benchmark numbers stand.
+
 ## 0.1.1 — 2026-09-29
 
 - `kit/` updated to dgx-spark-recipe-kit v0.2.1 (the TP2 network settings were already v0.1.2's):

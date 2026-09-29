@@ -7,7 +7,7 @@
 #   ./run.sh status     container state on every node + /v1/models
 #   ./run.sh logs       follow the head's server log
 #
-# Any knob in the recipe headers can be set in the environment, e.g.  DRAFT_TOKENS=4 SEQS=8 ./run.sh tp2
+# Any knob in the README Settings table can be set in the environment, e.g.  DRAFT_TOKENS=6 SEQS=8 ./run.sh tp2
 # DRY_RUN=1 prints the docker commands without running anything.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,5 +37,5 @@ case "$cmd" in
   logs)
     docker logs -f --tail 100 "$NAME" ;;
   *)
-    sed -n '2,12p' "$0"; exit 2 ;;
+    sed -n '2,11p' "$0"; exit 2 ;;
 esac

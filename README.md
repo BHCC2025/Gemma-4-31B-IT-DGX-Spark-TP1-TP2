@@ -13,22 +13,24 @@ Two Sparks each read half the weights per token. Speculative decoding uses Googl
 | 2 | `./run.sh tp2` | 256K | **40.6 / 28.0 tok/s** | 1,905 tok/s | 2026-09-29 |
 
 Every row was benched on our own Sparks with `bench/bench.sh` (same prompts for every row) and passed the smoke test.
-The draft model roughly triples decode speed (6.8 tok/s without it on one Spark). See [bench/results/](bench/results/).
+The draft model speeds up decode 2.4–3.6× (6.8 tok/s without it on one Spark). Cold prefill 8K is the bench's
+8K-target test, ~6.7K tokens with Gemma's tokenizer. See [bench/results/](bench/results/).
 
 - **Endpoint:** `http://<head>:8000/v1` (OpenAI-compatible), model `gemma-4-31b-it`
 - **Defaults:** thinking off (turn it on per request with `"chat_template_kwargs": {"enable_thinking": true}`),
-  tool calling on (`gemma4` parser), draft-model speculative decoding with 4 tokens, FP8 KV cache, prefix caching,
-  16 concurrent sequences. Image input works.
+  tool calling on (`gemma4` parser), draft-model speculative decoding with 4 tokens, FP8 KV cache, prefix caching
+  on, 16 concurrent sequences. With the draft model on, vLLM v0.29.0 gets no prefix-cache hits (measured: a repeated
+  9K-token prompt prefills in full again); `SPEC=off` brings them back.
 
 ## Requirements
 
 | | |
 |---|---|
-| Hardware | 1–2 DGX Spark (or other GB10 boxes with a ConnectX-7) |
+| Hardware | 1–2 DGX Sparks (or other GB10 boxes with a ConnectX-7) |
 | Cables | TP2: one QSFP cable (see [docs/networking.md](docs/networking.md)) |
 | OS | DGX OS 7 (Ubuntu 24.04), Docker with the NVIDIA runtime |
 | Disk | ~33 GB free NVMe on **every** node (each node needs its own local copy of both models) |
-| Image | `vllm/vllm-openai:v0.29.0` (pinned by digest) |
+| Image | `vllm/vllm-openai:v0.29.0` (pinned tag; its digest is in `recipe.yaml`) |
 | Model | `nvidia/Gemma-4-31B-IT-NVFP4` @ `4135a98a`, draft `google/gemma-4-31B-it-assistant` @ `627c5ec1` |
 | Access | A Hugging Face login that has accepted the Gemma terms (`hf auth login`); SSH from the head node to the worker (`setup.sh` sets up key login); `sudo` for installs and fabric IPs |
 
@@ -81,7 +83,7 @@ be overridden the same way (`PORT=8001 ./run.sh tp1`). `DRY_RUN=1` prints the do
 | `GRAPHS` | default | default | CUDA-graph mode: `default`, `eager` |
 | `EXTRA` / `DOCKER_EXTRA` | | | extra args for vLLM / `docker run` |
 
-The recipe headers in [recipes/](recipes/) list the rest.
+`IMAGE`, `MPORT` (the TP2 rendezvous port, 29531), `NCCL_DEBUG` and `NCCL_CHANNELS` can be set the same way.
 
 ## How it works
 
@@ -96,7 +98,7 @@ The recipe headers in [recipes/](recipes/) list the rest.
 `bench/bench.sh LABEL` runs the kit's shared suite (`kit/bench/`, the same for every recipe) against whatever is
 serving on `:8000`:
 - single-stream decode for code, prose and a ~9K-token prompt
-- cold prefill at 8K and 28K tokens with unique prompts (prefix cache off)
+- cold prefill at 8K and 28K tokens (unique prompts, so no prefix-cache hits)
 - the smoke test; add `LONG=1` for the needle test
 
 Results and raw logs go in [bench/results/](bench/results/).

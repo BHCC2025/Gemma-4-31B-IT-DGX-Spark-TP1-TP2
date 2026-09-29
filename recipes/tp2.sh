@@ -34,4 +34,4 @@ run_container run --gpus all -d --name "$NAME" --restart no \
     "${SPEC_ARGS[@]}" "${GRAPH_ARGS[@]}" \
     --distributed-executor-backend mp --nnodes 2 --node-rank "$RANK" \
     --master-addr "$TP2_HEAD_IP" --master-port "$MPORT" "${HEADLESS[@]}" ${EXTRA:-}
-echo "launched $NAME rank=$RANK host=$HOST_IP tp=2 spec=${SPEC:-draft}/${DRAFT_TOKENS:-4} kv=${KV_DTYPE:-fp8} gmu=$GMU maxlen=$MAXLEN"
+[ "${DRY_RUN:-0}" = 1 ] || echo "launched $NAME rank=$RANK host=$HOST_IP tp=2 spec=${SPEC:-draft}/${DRAFT_TOKENS:-4} kv=${KV_DTYPE:-fp8} gmu=$GMU maxlen=$MAXLEN"

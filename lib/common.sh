@@ -22,7 +22,7 @@ DRAFT_DIR="${DRAFT_DIR:-/var/tmp/models/gemma-4-31B-it-assistant}"
 
 # Variables forwarded from the head to the worker so both ranks run the same config.
 FORWARD_VARS=(IMAGE NAME GMU MAXLEN SEQS CHUNK KV_DTYPE GRAPHS SPEC DRAFT_TOKENS PREFIX_CACHE PORT MPORT
-              IB_GID_INDEX_TP2 NCCL_DEBUG NCCL_CHANNELS EXTRA DOCKER_EXTRA)
+              MODEL_DIR DRAFT_DIR CACHE_DIR IB_GID_INDEX_TP2 NCCL_DEBUG NCCL_CHANNELS EXTRA DOCKER_EXTRA)
 forward_env() {
   local v out=""
   for v in "${FORWARD_VARS[@]}"; do [ -n "${!v+x}" ] && out+="$v=$(printf %q "${!v}") "; done

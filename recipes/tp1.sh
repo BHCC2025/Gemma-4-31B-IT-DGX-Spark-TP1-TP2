@@ -19,4 +19,4 @@ run_container run --gpus all -d --name "$NAME" --restart no \
   "$IMAGE" \
     /models/gemma4-31b "${NAME_ARGS[@]}" "${SERVE_ARGS[@]}" --tensor-parallel-size 1 \
     "${SPEC_ARGS[@]}" "${GRAPH_ARGS[@]}" ${EXTRA:-}
-echo "launched $NAME tp=1 spec=${SPEC:-draft}/${DRAFT_TOKENS:-4} kv=${KV_DTYPE:-fp8} gmu=$GMU maxlen=$MAXLEN seqs=$SEQS"
+[ "${DRY_RUN:-0}" = 1 ] || echo "launched $NAME tp=1 spec=${SPEC:-draft}/${DRAFT_TOKENS:-4} kv=${KV_DTYPE:-fp8} gmu=$GMU maxlen=$MAXLEN seqs=$SEQS"
