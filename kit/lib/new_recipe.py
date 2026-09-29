@@ -88,6 +88,9 @@ def main():
         "WORKER_LOGS": ", `docker logs " + "vllm_" + slug.replace("-", "_") + "` on a worker" if hi > 1 else "",
         "NODES_COMMENT": "# " + "; ".join(f"TP{n} uses " + ("NODES[0]" if n == 1 else f"NODES[0..{n - 1}]") for n in sizes)
                          + (". Passwordless SSH head -> workers required." if hi > 1 else "."),
+        "CABLING_SENTENCE": "; ".join({2: "one cable between the two Sparks for TP2",
+                                       3: "three cables for TP3, each Spark to both others"}[n] for n in sizes if n > 1),
+        "EVERY_SPARK": "every Spark" if hi > 1 else "the Spark",
         "EXTRA_KNOBS": ("`IMAGE`, `MPORT` (the multi-node rendezvous port), `NCCL_DEBUG` and `NCCL_CHANNELS` can"
                         if hi > 1 else "`IMAGE` can"), "EACH": "" if len(sizes) == 1 and sizes[0] == 1 else " each", "SPARKS_WORDS_CAP": f"{lo}–{hi}" if lo != hi else str(lo),
         "README_ROWS": "\n".join(f"| {n} | `./run.sh tp{n}` | 256K | – | – | not yet |" for n in sizes),

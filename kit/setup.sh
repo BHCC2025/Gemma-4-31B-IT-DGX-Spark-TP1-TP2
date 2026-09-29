@@ -147,6 +147,37 @@ elif ask_yn "Install the Hugging Face CLI into $STATE/venv (no system changes)?"
     || bad "could not install the hf CLI"
 else warn "no hf CLI — the model download step will be skipped"; fi
 
+# Can this machine download the pinned model? One tiny file now, so a gated model or a network problem shows up
+# before anything big happens (check mode too: it lands in a temporary directory that is removed).
+hf_probe() {
+  local t rc; t=$(mktemp -d)
+  "$HF_BIN" download "$R_HF_REPO" config.json --revision "$R_REVISION" --local-dir "$t" >/dev/null 2>&1; rc=$?
+  rm -rf "$t"; return $rc
+}
+if [ -n "$HF_BIN" ] && [ "$(j "$STATE/probe-0.json" 'd["model_state"]')" != complete ]; then
+  if hf_probe; then ok "Hugging Face: $R_HF_REPO@${R_REVISION:0:8} is downloadable from here"
+  else
+    # What does Hugging Face say about the repo? gated: auto/manual, not gated: False, or an error (not found, ...)
+    gated=$(curl -s -m 10 "https://huggingface.co/api/models/$R_HF_REPO" | python3 -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except ValueError: print("unreachable"); sys.exit()
+print("error: " + d["error"] if "error" in d else d.get("gated"))' 2>/dev/null)
+    if [[ "$gated" == error:* ]]; then
+      # Hugging Face answers an anonymous request for a missing or private repo with "Invalid username or password"
+      bad "Hugging Face: no such public repo $R_HF_REPO (misspelled in recipe.yaml, or private: then run $HF_BIN auth login)"
+    elif [ -n "$gated" ] && [ "$gated" != False ] && [ "$gated" != unreachable ]; then
+      bad "Hugging Face: $R_HF_REPO is gated. Open https://huggingface.co/$R_HF_REPO while logged in, accept its licence, then log in here"
+      if [ "$YES" = 0 ] && ask_yn "Log in to Hugging Face now (paste a read token from https://huggingface.co/settings/tokens)?" y; then
+        "$HF_BIN" auth login </dev/tty && hf_probe && { ok "Hugging Face: access to $R_HF_REPO works now"; FAILS=("${FAILS[@]:0:${#FAILS[@]}-1}"); } \
+          || info "still no access: has the licence been accepted on the model page with the same account?"
+      else info "later: $HF_BIN auth login, then re-run ./setup.sh"; fi
+    else
+      bad "Hugging Face: cannot download $R_HF_REPO@${R_REVISION:0:8} (check this machine's internet access, DNS or proxy, and the revision in recipe.yaml)"
+    fi
+  fi
+fi
+
 # ---------------------------------------------------------------- 4. network
 declare -A ENVSET=()
 ENVSET[NODES]="($(printf '%q ' "${NODES[@]}" | sed 's/ $//'))"
@@ -319,7 +350,7 @@ else
   elif ask_yn "Download $R_HF_REPO@${R_REVISION:0:8} (~${R_DISK_GB} GB) to $MODEL_DIR?" y; then
     mkdir -p "$MODEL_DIR" && "$HF_BIN" download "$R_HF_REPO" --revision "$R_REVISION" --local-dir "$MODEL_DIR" \
       && ok "downloaded to $MODEL_DIR" \
-      || bad "download failed (gated model? run: $HF_BIN auth login)"
+      || bad "download failed (see the Hugging Face check in step 3)"
   else warn "head: $R_HF_REPO not downloaded yet ($MODEL_DIR)"
   fi
   if [ "$(python3 "$KIT_DIR/lib/probe.py" --no-neighbors --model-dir "$MODEL_DIR" | python3 -c 'import json,sys; print(json.load(sys.stdin)["model_state"])')" = complete ]; then

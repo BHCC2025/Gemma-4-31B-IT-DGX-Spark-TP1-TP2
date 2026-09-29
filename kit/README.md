@@ -1,7 +1,10 @@
 # dgx-spark-recipe-kit
 
-The shared setup kit for the BHCC2025 DGX Spark recipe repos. Every recipe carries a copy under `kit/`, so a user
-gets the same experience whatever model they're setting up:
+**To run a model you don't need this repo:** pick a recipe from the table below and clone it. Each recipe carries its
+own copy of this kit under `kit/`, and its `./setup.sh` runs it.
+
+The shared setup kit for the BHCC2025 DGX Spark recipe repos, so every recipe gives the same experience whatever model
+it sets up:
 
 ```bash
 git clone https://github.com/BHCC2025/<recipe>.git && cd <recipe>
@@ -13,7 +16,7 @@ git clone https://github.com/BHCC2025/<recipe>.git && cd <recipe>
 
 | Recipe | Sparks | Engine | Single-stream decode, code (fastest setup) |
 |---|---|---|---|
-| [Qwen3.8-Flash-Next-DGX-Spark-TP1-TP3](https://github.com/BHCC2025/Qwen3.8-Flash-Next-DGX-Spark-TP1-TP3) | 1–3 | vLLM | 57.4 tok/s (3 Sparks) |
+| [Qwen3.8-Flash-Next-DGX-Spark-TP1-TP3](https://github.com/BHCC2025/Qwen3.8-Flash-Next-DGX-Spark-TP1-TP3) | 1–3 | vLLM | 62.8 tok/s (3 Sparks) |
 | [Gemma-4-31B-IT-DGX-Spark-TP1-TP2](https://github.com/BHCC2025/Gemma-4-31B-IT-DGX-Spark-TP1-TP2) | 1–2 | vLLM | 40.6 tok/s (2 Sparks) |
 
 Every number is benched on our own Sparks with the recipe's `bench/bench.sh`; see each recipe's `bench/results/`.
@@ -24,7 +27,7 @@ Every number is benched on our own Sparks with the recipe's `bench/bench.sh`; se
 |---|---|---|
 | 1. Nodes | Asks how many Sparks and their SSH names; checks passwordless SSH | offers `ssh-copy-id` |
 | 2. Inspect | Runs `lib/probe.py` on every node: OS, GPU, memory, tools, Docker, disk, LAN, every RDMA port | no |
-| 3. Dependencies | Docker without sudo, rsync, perftest, the Hugging Face CLI | offers `apt install`, docker group, a local venv for `hf` |
+| 3. Dependencies | Docker without sudo, rsync, perftest, the Hugging Face CLI; test-downloads one small file of the model (a gated model gets its licence link and a login prompt) | offers `apt install`, docker group, a local venv for `hf` |
 | 4. Cabling | Works out which port is cabled to which node (IPv6 all-nodes ping, so no IPv4 is needed yet), checks the shape (1 cable / triangle), checks IPs and the RoCE v2 GID, pings every cable | offers to assign fabric IPs (NetworkManager connection or netplan, only on those ports) |
 | 5. cluster.env | Picks the model directory (checks free space on every node) and writes the detected values into `cluster.env` | shows a diff, asks |
 | 6. Image | Pulls the pinned image on every node and checks the GPU is visible inside it | offers `docker pull` |
@@ -47,9 +50,9 @@ Every number is benched on our own Sparks with the recipe's `bench/bench.sh`; se
   installed `hf`, found the cable and assigned its IPs, then measured RDMA at 111.6 Gb/s and NCCL at 11.9 GB/s; the
   Gemma recipe then served TP2 and passed its smoke test. `--check` is also exercised on 1, 2 and 3 nodes.
 - **Not tested yet:** other DGX OS releases, machines without NetworkManager (the netplan path), a switch instead of
-  direct cables, more than three nodes, and a first model download on a new account (a gated model needs
-  `hf auth login`). If you try one of these, please open an issue with your `.setup/report.txt`, whether it
-  worked or not.
+  direct cables, more than three nodes, and a full first model download on a new account (the download test in
+  step 3 is tested with an ungated, a gated and a missing repo). If you try one of these, please open an issue with
+  your `.setup/report.txt`, whether it worked or not.
 
 ## Files
 
