@@ -168,7 +168,7 @@ PY
     info "applied as a NetworkManager connection 'spark-fabric-<if>' (or a netplan file), MTU 9000, only on these ports"
     if ask_yn "Configure these addresses now (sudo on each listed node)?" y; then
       while IFS=$'\t' read -r idx ifc cidr; do
-        on_tty "$idx" "bash $(printf %q "$REPO_DIR/kit/lib/netconfig.sh") $ifc $cidr" || bad "${NODES[$idx]}: could not set $ifc"
+        on_tty "$idx" "bash $(printf %q "$KIT_DIR/lib/netconfig.sh") $ifc $cidr" || bad "${NODES[$idx]}: could not set $ifc"
       done < <(python3 -c "import json; [print(a['index'], a['netdev'], a['cidr'], sep='\t') for a in json.load(open('$STATE/topology.json'))['assign']]")
       sleep 5; probe_all && topo
       [ "$(j "$STATE/topology.json" 'len(d["assign"])')" = 0 ] && ok "fabric IPs configured" || bad "some fabric ports still have no IPv4"
@@ -222,9 +222,13 @@ else
   info "proposed cluster.env changes:"
   diff -u "$([ -f "$REPO_DIR/cluster.env" ] && echo "$REPO_DIR/cluster.env" || echo /dev/null)" "$STATE/cluster.env.new" | sed -n '3,200p' | grep -E '^[-+]' | sed 's/^/          /'
   if ask_yn "Write cluster.env?" y; then cp "$STATE/cluster.env.new" "$REPO_DIR/cluster.env" && ok "cluster.env written"
+  elif [ "$CHECK" = 1 ]; then info "check mode: cluster.env not written (proposal in $STATE/cluster.env.new)"
   else warn "cluster.env not written (proposal kept in $STATE/cluster.env.new)"; fi
 fi
-[ -f "$REPO_DIR/cluster.env" ] && source "$REPO_DIR/cluster.env"
+# The tests below use the detected values: cluster.env if it now matches them, otherwise the proposal
+# (check mode, or the user declined to write it).
+if [ -f "$REPO_DIR/cluster.env" ] && cmp -s "$REPO_DIR/cluster.env" "$STATE/cluster.env.new"; then source "$REPO_DIR/cluster.env"
+else source "$STATE/cluster.env.new"; fi
 [ "$CHECK" = 0 ] && [ "$N" -gt 1 ] && sync_repo
 
 # ---------------------------------------------------------------- 6. image
@@ -241,18 +245,17 @@ done
 
 # ---------------------------------------------------------------- 7. network test
 nccl_run() {  # profile world
-  local prof=$1 W=$2 r port=$((29500 + RANDOM % 400)) out rc=0
+  local prof=$1 W=$2 r port=$((29500 + RANDOM % 400)) out rc=0 prog
   source "$KIT_DIR/lib/nccl.sh"
-  # the kit must already be on every node: a missing -v source makes Docker create it as an empty root-owned dir
-  for ((r = 0; r < W; r++)); do
-    on "$r" "test -f $(printf %q "$KIT_DIR/lib/nccl_check.py")" || { bad "${NODES[$r]}: $KIT_DIR missing (repo not copied)"; return; }
-  done
+  # The test script travels inside the command (base64), so nothing has to exist on the workers: this works in
+  # --check mode before the repo is copied, and there is no -v mount that Docker could create as a root-owned dir.
+  prog=$(printf %q "import base64; exec(base64.b64decode('$(base64 -w0 "$KIT_DIR/lib/nccl_check.py")'))")
   for ((r = W - 1; r >= 0; r--)); do
     "nccl_env_$prof" "$r"
     on "$r" "docker rm -f kit_nccl_check >/dev/null 2>&1; docker run -d --name kit_nccl_check --gpus all --network host --ipc host \
       --shm-size 8g --ulimit memlock=-1:-1 --cap-add IPC_LOCK --device /dev/infiniband:/dev/infiniband \
-      -v $(printf %q "$KIT_DIR/lib"):/kit:ro $(printf '%q ' "${NCCL_ENV[@]}") --entrypoint python3 $R_IMAGE \
-      /kit/nccl_check.py --rank $r --world $W --master $NCCL_MASTER --port $port >/dev/null" || rc=1
+      $(printf '%q ' "${NCCL_ENV[@]}") --entrypoint python3 $R_IMAGE \
+      -c $prog --rank $r --world $W --master $NCCL_MASTER --port $port >/dev/null" || rc=1
   done
   out=$(on 0 "timeout 240 docker wait kit_nccl_check >/dev/null; docker logs kit_nccl_check 2>&1 | tail -40")
   for ((r = 0; r < W; r++)); do on "$r" "docker rm -f kit_nccl_check >/dev/null 2>&1"; done
